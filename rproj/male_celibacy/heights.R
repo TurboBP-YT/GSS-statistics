@@ -5,6 +5,8 @@ library(survey)
 library(srvyr)
 library(gssr)
 library(gssrdoc)
+library(weights)
+library(stringr)
 
 data(gss_all)
 
@@ -40,7 +42,7 @@ gss_relevant <- gss_relevant |>
     valid = ((!is.na(numwomen)) & (numwomen >= 0 & numwomen <= 750) & (!is.na(height)))
   ) |>
   filter(include == TRUE & valid == TRUE) |>
-  mutate(
+  mutate( # Converts `height` inches to `height_grp` category labels
     slept_with_no_women_since_18 = numwomen == 0,
     height_grp = case_when(
       (height >= 0 & height <= 66) ~ CAT_LABEL_SHORT,
@@ -49,6 +51,11 @@ gss_relevant <- gss_relevant |>
       TRUE ~ NA # Default case if no other condition is met
     )
   )
+
+# Converts `slept_with_no_women_since_18` column to a factor with a specified order
+gss_relevant$slept_with_no_women_since_18 <- factor(gss_relevant$slept_with_no_women_since_18, levels = c(FALSE, TRUE))
+
+# Converts `height_grp` column to a factor with a specified order
 gss_relevant$height_grp <- factor(gss_relevant$height_grp, levels = c(CAT_LABEL_LONG, CAT_LABEL_MED, CAT_LABEL_SHORT))
 
 # LINE GRAPH [
@@ -68,21 +75,23 @@ gss_svy <- gss_relevant |>
 
 # Gets the breakdown for every year
 proport_by_year <- gss_svy |> 
-  group_by(year, height_grp, slept_with_no_women_since_18) |> 
-  summarize(proport = survey_mean(na.rm = TRUE, vartype = "ci")) |>
-  filter(slept_with_no_women_since_18 == TRUE)
+  group_by(year, height_grp) |> 
+  summarize(proport = survey_mean(as.numeric(slept_with_no_women_since_18 == TRUE), na.rm = TRUE, vartype = "ci"))  # as.numeric makes it include zero-observation groups
+  # filter(slept_with_no_women_since_18 == TRUE)
 
 # FOR SCREENSHOT
 gss_relevant |> 
   group_by(year, height_grp, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
   mutate(proport = n / sum(n))
 
 proport_by_year_nonweighted <- gss_relevant |> 
   group_by(year, height_grp, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
   mutate(proport = n / sum(n)) |>
   filter(slept_with_no_women_since_18 == TRUE)
 
@@ -92,7 +101,7 @@ proport_by_year <- left_join(
   gss_svy |> 
     group_by(year, height_grp) |>
     summarize(count = n()) |>
-    mutate(`Height Group Percentage` = 100 * count / sum(count)),
+    mutate(height_grp_prevalence_in_year = 100 * count / sum(count)),
   by = c("year", "height_grp"))
 
 # PLOT
@@ -100,6 +109,7 @@ proport_by_year <- left_join(
 theme_set(theme_minimal())
 
 categories_txt <- "Height Group"
+thickness_txt <- "Height Group Percentage\n(In surveyed sample.\nNot population census.)"
 
 dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
 
@@ -109,7 +119,7 @@ height_grp_colormap[CAT_LABEL_MED] <- "darkcyan"
 height_grp_colormap[CAT_LABEL_SHORT] <- "darkslateblue"
 
 proport_by_year |> 
-  select(!slept_with_no_women_since_18) |>
+  # select(!slept_with_no_women_since_18) |>
   
   ggplot(mapping = 
            aes(x = year, y = proport,
@@ -118,10 +128,10 @@ proport_by_year |>
                color = height_grp,
                group = height_grp, 
                fill = height_grp,
-               linewidth = `Height Group Percentage`)) +
+               linewidth = height_grp_prevalence_in_year)) +
   geom_line() +
-  scale_linewidth(range = c(0.1, 2.5),
-                  guide = guide_legend(nrow=2)) +  # adjusts the range of line widths
+  scale_linewidth(range = c(0.1, 2.5),# adjusts the range of line widths
+                  guide = guide_legend(title=thickness_txt, nrow=2)) +
   geom_ribbon(alpha = 0.3, color = NA, linewidth = NA) +
   scale_x_continuous(breaks = seq(2014, 2022, 4)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
@@ -145,6 +155,12 @@ ggsave("../outs/height_linegraph.png", width=1000, height=500, units="px", dpi=1
 gss_relevant <- gss_relevant |>
   mutate(wtssps_float = as.numeric(wtssps))
 
+# CORRELATION COEFFICIENT + P-VALUE
+
+weighted_correlation_results <- wtd.cor(gss_relevant$height, gss_relevant$numwomen, weight = gss_relevant$wtssps_float, mean1 = TRUE)
+corrcoeff <- weighted_correlation_results[,"correlation"]
+p_value <- weighted_correlation_results[,"p.value"]
+
 # PLOT
 
 theme_set(theme_minimal())
@@ -160,8 +176,12 @@ gss_relevant |>
        y = "Number of Female Sexual Partners Since Respondent Turned 18",
        title = "U.S. Men (18 through 29)",
        subtitle = "Weighted. Jitter added to differentiate points.",
-       caption = "Data Source: General Social Survey") +
-  theme(legend.position = "none", panel.grid.minor.y = element_blank(), plot.background = element_rect(fill='white'))
+       caption = c(str_glue("Correlation: {round(corrcoeff,digits=5)}\nP-value: {round(p_value,digits=5)}"), "Data Source: General Social Survey")) +
+  theme(plot.caption = element_text(hjust = c(0, 1)),
+        legend.position = "none",
+        panel.grid.minor.y = element_blank(),
+        plot.background = element_rect(fill='white')
+        )
 
 ggsave("../outs/height_scatterplot.png", width=1000, height=1000, units="px", dpi=144)
 

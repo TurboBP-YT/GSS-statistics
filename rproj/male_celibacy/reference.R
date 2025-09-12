@@ -40,6 +40,9 @@ gss_relevant <- gss_relevant |>
     slept_with_no_women_since_18 = numwomen == 0
   )
 
+# Converts `slept_with_no_women_since_18` column to a factor with a specified order
+gss_relevant$slept_with_no_women_since_18 <- factor(gss_relevant$slept_with_no_women_since_18, levels = c(FALSE, TRUE))
+
 # CALCULATE ANNUAL STATS
 
 options(survey.lonely.psu = "adjust")
@@ -55,14 +58,15 @@ gss_svy <- gss_relevant |>
 
 # Gets the breakdown for every year
 proport_by_year <- gss_svy |> 
-  group_by(year, slept_with_no_women_since_18) |> 
-  summarize(proport = survey_mean(na.rm = TRUE, vartype = "ci")) |>
-  filter(slept_with_no_women_since_18 == TRUE)
+  group_by(year) |>
+  summarize(proport = survey_mean(as.numeric(slept_with_no_women_since_18 == TRUE), na.rm = TRUE, vartype = "ci"))  # as.numeric makes it include zero-observation groups
+  # filter(slept_with_no_women_since_18 == TRUE)
 
 proport_by_year_nonweighted <- gss_relevant |> 
   group_by(year, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
   mutate(proport = n / sum(n)) |>
   filter(slept_with_no_women_since_18 == TRUE)
 
@@ -73,12 +77,12 @@ theme_set(theme_minimal())
 dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
 
 proport_by_year |> 
-  select(!slept_with_no_women_since_18) |>
+  # select(!slept_with_no_women_since_18) |>
   ggplot(mapping = 
            aes(x = year, y = proport,
                ymin = proport_low, 
                ymax = proport_upp)) +
-  geom_line(linewidth = 1.2) +
+  geom_line(linewidth = 1.25) +
   geom_ribbon(alpha = 0.3, color = NA) +
   scale_x_continuous(breaks = seq(1989, 2022, 3)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +

@@ -40,11 +40,16 @@ gss_relevant <- gss_relevant |>
     slept_with_no_women_since_18 = numwomen == 0
   )
 
+# Converts `slept_with_no_women_since_18` column to a factor with a specified order
+gss_relevant$slept_with_no_women_since_18 <- factor(gss_relevant$slept_with_no_women_since_18, levels = c(FALSE, TRUE))
+
+# Converts `race` numeric codes to `race_str` strings
 race_map <- c(`1` = "White", `2` = "Black", `3` = "Other")
 gss_relevant$race_str <- race_map[gss_relevant$race]
-# 2. Converts `race` column to a factor with a specified order
+# Converts `race` column to a factor with a specified order
 gss_relevant$race_str <- factor(gss_relevant$race_str, levels = c("White", "Black", "Other"))
 
+# Converts `hispanic` numeric codes to `hispanic_str` strings
 gss_relevant <- gss_relevant |>
   mutate(
     hispanic_str = case_when(
@@ -53,6 +58,7 @@ gss_relevant <- gss_relevant |>
       TRUE ~ NA # Default case if no other condition is met
     )
   )
+# Converts `hispanic` column to a factor with a specified order
 gss_relevant$hispanic_str <- factor(gss_relevant$hispanic_str, levels = c("Not Hispanic/Latino", "Hispanic/Latino"))
 
 # CALCULATE ANNUAL STATS
@@ -75,25 +81,37 @@ gss_relevant <- gss_relevant |>
 gss_svy <- gss_svy |>
   filter(!is.na(race))
 
-# FOR SCREENSHOT
+# FOR SCREENSHOTS [
 print((gss_relevant |> 
   group_by(year, race_str, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
   mutate(proport = n / sum(n)))[67:90,], n=100)
+gss_relevant |> 
+  group_by(year, race_str, slept_with_no_women_since_18) |> 
+  tally() |>
+  drop_na() |>
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
+  mutate(proport = n / sum(n))
+# ] FOR SCREENSHOTS
 
 # Gets the breakdown for every year
 proport_by_year <- gss_svy |> 
-  group_by(year, race_str, slept_with_no_women_since_18) |> 
-  summarize(proport = 1 - survey_mean(na.rm = TRUE, vartype = "ci")) |>
-  filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
+  group_by(year, race_str) |> 
+  summarize(proport = survey_mean(as.numeric(slept_with_no_women_since_18 == TRUE), na.rm = TRUE, vartype = "ci")) # as.numeric makes it include zero-observation groups
+  # filter(slept_with_no_women_since_18 == TRUE)
+  # summarize(proport = 1 - survey_mean(na.rm = TRUE, vartype = "ci")) |>
+  # filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
 
 proport_by_year_nonweighted <- gss_relevant |> 
   group_by(year, race_str, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
-  mutate(proport = 1 - n / sum(n)) |>
-  filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
+  mutate(proport = n / sum(n)) |>
+  filter(slept_with_no_women_since_18 == TRUE)
+  # mutate(proport = 1 - n / sum(n)) |>
+  # filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
 
 # Races’ Sample Percentages
 proport_by_year <- left_join(
@@ -101,7 +119,7 @@ proport_by_year <- left_join(
   gss_svy |> 
     group_by(year, race_str) |>
     summarize(count = n()) |>
-    mutate(`Race Percentage` = 100 * count / sum(count)),
+    mutate(race_prevalence_in_year = 100 * count / sum(count)),
   by = c("year", "race_str"))
 
 # PLOT
@@ -109,13 +127,14 @@ proport_by_year <- left_join(
 theme_set(theme_minimal())
 
 categories_txt <- "Race"
+thickness_txt <- "Race Percentage\n(In surveyed sample.\nNot population census.)"
 
 dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
 
 races_colormap = c("White"="deeppink", "Black"="deepskyblue", "Other"="goldenrod")
 
 proport_by_year |> 
-  select(!slept_with_no_women_since_18) |>
+  # select(!slept_with_no_women_since_18) |>
   
   ggplot(mapping = 
            aes(x = year, y = proport,
@@ -124,9 +143,10 @@ proport_by_year |>
                color = race_str,
                group = race_str, 
                fill = race_str,
-               linewidth = `Race Percentage`)) +
+               linewidth = race_prevalence_in_year)) +
   geom_line() +
-  scale_linewidth(range = c(0.1, 2.5)) +  # adjusts the range of line widths
+  scale_linewidth(range = c(0.1, 2.5), # adjusts the range of line widths
+                  guide = guide_legend(title=thickness_txt)) +
   geom_ribbon(alpha = 0.3, color = NA, linewidth = NA) +
   scale_x_continuous(breaks = seq(1989, 2022, 3)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
@@ -154,24 +174,28 @@ gss_svy <- gss_svy |>
 
 # Gets the breakdown for every year
 proport_by_year <- gss_svy |> 
-  group_by(year, hispanic_str, slept_with_no_women_since_18) |> 
-  summarize(proport = 1 - survey_mean(na.rm = TRUE, vartype = "ci")) |>
-  filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
+  group_by(year, hispanic_str) |> 
+  summarize(proport = survey_mean(as.numeric(slept_with_no_women_since_18 == TRUE), na.rm = TRUE, vartype = "ci")) # as.numeric makes it include zero-observation groups
+  # summarize(proport = 1 - survey_mean(na.rm = TRUE, vartype = "ci")) |>
+  # filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
 
 proport_by_year_nonweighted <- gss_relevant |> 
   group_by(year, hispanic_str, slept_with_no_women_since_18) |> 
   tally() |>
   drop_na() |>
-  mutate(proport = 1 - n / sum(n)) |>
-  filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
+  complete(slept_with_no_women_since_18, fill = list(n = 0)) |>
+  mutate(proport = n / sum(n)) |>
+  filter(slept_with_no_women_since_18 == TRUE)
+  # mutate(proport = 1 - n / sum(n)) |>
+  # filter(slept_with_no_women_since_18 == FALSE) # negation because not all years have sexless men of all races
 
-# Races’ Sample Percentages
+# Ethnic Groups’ Sample Percentages
 proport_by_year <- left_join(
   proport_by_year,
   gss_svy |> 
     group_by(year, hispanic_str) |>
     summarize(count = n()) |>
-    mutate(`Category Percentage` = 100 * count / sum(count)),
+    mutate(ethnic_grp_prevalance_in_year = 100 * count / sum(count)),
   by = c("year", "hispanic_str"))
 
 # PLOT
@@ -179,13 +203,14 @@ proport_by_year <- left_join(
 theme_set(theme_minimal())
 
 categories_txt <- "Ethnicity: Hispanic/Latino Specified"
+thickness_txt <- "Category Percentage\n(In surveyed sample.\nNot population census.)"
 
 dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
 
 ethnicities_colormap = c("Not Hispanic/Latino"="orangered", "Hispanic/Latino"="darkgreen")
 
 proport_by_year |> 
-  select(!slept_with_no_women_since_18) |>
+  # select(!slept_with_no_women_since_18) |>
   
   ggplot(mapping = 
            aes(x = year, y = proport,
@@ -194,9 +219,10 @@ proport_by_year |>
                color = hispanic_str,
                group = hispanic_str, 
                fill = hispanic_str,
-               linewidth = `Category Percentage`)) +
+               linewidth = ethnic_grp_prevalance_in_year)) +
   geom_line() +
-  scale_linewidth(range = c(0.1, 2.5)) +  # adjusts the range of line widths
+  scale_linewidth(range = c(0.1, 2.5), # adjusts the range of line widths
+                  guide = guide_legend(title=thickness_txt)) +
   geom_ribbon(alpha = 0.3, color = NA, linewidth = NA) +
   scale_x_continuous(breaks = seq(2002, 2022, 4)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
