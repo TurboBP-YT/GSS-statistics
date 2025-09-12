@@ -1,0 +1,16 @@
+# RStudio project files
+.Rproj.user/
+*.Rproj
+
+# R package build files
+.Rhistory
+.Rdata
+.Rprofile
+.httr-oauth
+
+# Temporary files or logs
+# *.log
+# *.tmp
+
+# macOS specific
+.DS_Store
