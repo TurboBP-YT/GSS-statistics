@@ -165,13 +165,13 @@ p_value <- weighted_correlation_results[,"p.value"]
 
 theme_set(theme_minimal())
 
-gss_relevant |> 
-  ggplot(aes(x=height, y=numwomen)) + 
-  geom_point(aes(size = wtssps_float), position=position_jitter(h=0.25,w=0.25)) +
+gss_relevant |>
+  ggplot(aes(x=height, y=numwomen)) +
+  geom_smooth(method='lm', aes(weight = wtssps_float), se = TRUE, alpha = 0.25) +
+  geom_point(aes(size=sqrt(wtssps_float)), shape=21, fill="black", color="transparent", position = position_jitter(h=0.25,w=0.25)) +
   scale_size(range = c(0.1, 2.5)) +
-  geom_smooth(method='lm', aes(weight = wtssps_float)) +
   scale_y_continuous(breaks = seq(0, 30, 1)) +
-  coord_cartesian(ylim = c(0, 30)) +
+  coord_cartesian(xlim = c(min(gss_relevant$height), max(gss_relevant$height)), ylim = c(0, 30)) +
   labs(x = "Height in Inches",
        y = "Number of Female Sexual Partners Since Respondent Turned 18",
        title = "U.S. Men (18 through 29)",
@@ -184,5 +184,54 @@ gss_relevant |>
         )
 
 ggsave("../output/male_celibacy/height_scatterplot.png", width=1000, height=1000, units="px", dpi=144)
+
+# COLORS PLOT
+
+# A function to generate custom labels for the legend
+midpoint_labels <- function(breaks) {
+  num_bins <- length(breaks) - 1
+  start <- breaks[1:num_bins]
+  end <- breaks[2:(num_bins + 1)]
+  midpoints <- (start + end) / 2
+  append(as.character(round(midpoints)), c(""))
+}
+
+gss_relevant |> 
+  ggplot(aes(x=height, y=numwomen, fill=as.numeric(year), size=sqrt(wtssps_float))) + 
+  geom_smooth(method='lm', aes(weight = wtssps_float), se = TRUE, alpha = 0.15) +
+  geom_point(shape=21, color="transparent", position = position_jitter(h=0.25,w=0.25)) +
+  scale_size(range = c(0.1, 2.5)) +
+  scale_fill_gradientn(
+    colors = c("aquamarine3", "deepskyblue3", "royalblue2"),
+    breaks = c(2012, 2016, 2020, 2024),
+    labels = midpoint_labels,
+    limits = c(2012, 2024),
+    guide = guide_coloursteps(
+      title = "Survey Year",
+      title.position = "top",
+      title.hjust = 0.5,
+      label.position = "bottom",
+      label.hjust = 0,
+      show.limits = FALSE,
+      n.dodge = 1
+    )
+  ) +
+  scale_y_continuous(breaks = seq(0, 30, 1)) +
+  coord_cartesian(xlim = c(min(gss_relevant$height), max(gss_relevant$height)), ylim = c(0, 30)) +
+  guides(size = "none") +
+  labs(x = "Height in Inches",
+       y = "Number of Female Sexual Partners Since Respondent Turned 18",
+       title = "U.S. Men (18 through 29)",
+       subtitle = "Weighted. Jitter added to differentiate points.",
+       caption = c(str_glue("Correlation: {round(corrcoeff,digits=5)}\nP-value: {round(p_value,digits=5)}"), "Data Source: General Social Survey")) +
+  theme(plot.caption = element_text(hjust = c(0, 1)),
+        legend.direction = "horizontal",
+        legend.position = c(1,.95),
+        legend.justification = c("right", "bottom"),
+        panel.grid.minor.y = element_blank(),
+        plot.background = element_rect(fill='white')
+  )
+
+ggsave("../output/male_celibacy/height_scatterplot_color.png", width=1000, height=1000, units="px", dpi=144)
 
 # ] SCATTERPLOT
