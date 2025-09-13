@@ -111,7 +111,7 @@ theme_set(theme_minimal())
 categories_txt <- "Height Group"
 thickness_txt <- "Height Group Percentage\n(In surveyed sample.\nNot population census.)"
 
-dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
+dependent_variable_txt <- "Share of U.S. men under age 30 who report zero female sex partners since they turned 18."
 
 height_grp_colormap = character(3)
 height_grp_colormap[CAT_LABEL_LONG] <- "darkorange"
@@ -146,7 +146,7 @@ proport_by_year |>
        caption = "Data Source: General Social Survey") +
   theme(legend.position = "right", plot.background = element_rect(fill='white'))
 
-ggsave("../outs/height_linegraph.png", width=1000, height=500, units="px", dpi=144)
+ggsave("../output/male_celibacy/height_linegraph.png", width=1000, height=500, units="px", dpi=144)
 
 # ] LINE GRAPH
 
@@ -183,6 +183,6 @@ gss_relevant |>
         plot.background = element_rect(fill='white')
         )
 
-ggsave("../outs/height_scatterplot.png", width=1000, height=1000, units="px", dpi=144)
+ggsave("../output/male_celibacy/height_scatterplot.png", width=1000, height=1000, units="px", dpi=144)
 
 # ] SCATTERPLOT

@@ -74,7 +74,7 @@ proport_by_year_nonweighted <- gss_relevant |>
 
 theme_set(theme_minimal())
 
-dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
+dependent_variable_txt <- "Share of U.S. men under age 30 who report zero female sex partners since they turned 18."
 
 proport_by_year |> 
   # select(!slept_with_no_women_since_18) |>
@@ -93,4 +93,4 @@ proport_by_year |>
        caption = "Data Source: General Social Survey") +
   theme(plot.background = element_rect(fill='white'))
 
-ggsave("../outs/reference.png", width=1000, height=500, units="px", dpi=144)
+ggsave("../output/male_celibacy/reference.png", width=1000, height=500, units="px", dpi=144)

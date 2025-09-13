@@ -129,7 +129,7 @@ theme_set(theme_minimal())
 categories_txt <- "Race"
 thickness_txt <- "Race Percentage\n(In surveyed sample.\nNot population census.)"
 
-dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
+dependent_variable_txt <- "Share of U.S. men under age 30 who report zero female sex partners since they turned 18."
 
 races_colormap = c("White"="deeppink", "Black"="deepskyblue", "Other"="goldenrod")
 
@@ -161,7 +161,7 @@ proport_by_year |>
        caption = "Data Source: General Social Survey") +
   theme(legend.position = "right", plot.background = element_rect(fill='white'))
 
-ggsave("../outs/race.png", width=1000, height=500, units="px", dpi=144)
+ggsave("../output/male_celibacy/race.png", width=1000, height=500, units="px", dpi=144)
 
 # ] RACE
 
@@ -205,7 +205,7 @@ theme_set(theme_minimal())
 categories_txt <- "Ethnicity: Hispanic/Latino Specified"
 thickness_txt <- "Category Percentage\n(In surveyed sample.\nNot population census.)"
 
-dependent_variable_txt <- "Share of men under age 30 who report zero female sex partners since they turned 18."
+# dependent_variable_txt <- "Share of U.S. men under age 30 who report zero female sex partners since they turned 18."
 
 ethnicities_colormap = c("Not Hispanic/Latino"="orangered", "Hispanic/Latino"="darkgreen")
 
@@ -237,6 +237,6 @@ proport_by_year |>
        caption = "Data Source: General Social Survey") +
   theme(legend.position = "right", plot.background = element_rect(fill='white'))
 
-ggsave("../outs/ethnicity.png", width=1000, height=500, units="px", dpi=144)
+ggsave("../output/male_celibacy/ethnicity.png", width=1000, height=500, units="px", dpi=144)
 
 # ] HISPANIC LATINO

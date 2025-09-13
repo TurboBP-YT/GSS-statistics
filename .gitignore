@@ -5,6 +5,7 @@
 # R package build files
 .Rhistory
 .Rdata
+.RData
 .Rprofile
 .httr-oauth
 
